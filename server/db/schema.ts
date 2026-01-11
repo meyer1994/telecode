@@ -1,11 +1,17 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { relations, sql } from 'drizzle-orm';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-export const TUsers = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  fullName: text('full_name').notNull(),
-  email: text('email').notNull().unique(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+export const TMessages = sqliteTable('messages', {
+  id: text('id').primaryKey(),
+  message: text('message').notNull(),
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$onUpdate(() => sql`CURRENT_TIMESTAMP`)
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export type User = typeof TUsers.$inferSelect;
-export type NewUser = typeof TUsers.$inferInsert;
+export const RMessages = relations(TMessages, () => ({}));

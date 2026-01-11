@@ -1,11 +1,11 @@
-import { webhookCallback } from "grammy";
-import { Update } from "grammy/types";
-import { eventHandler, type H3Event } from "h3";
+import { webhookCallback } from 'grammy';
+import { Update } from 'grammy/types';
+import { eventHandler, type H3Event } from 'h3';
 
 /**
  * Abstraction over a request-response cycle, providing access to the update, as
  * well as a mechanism for responding to the request and to end it.
- * 
+ *
  * Copied from:
  * https://github.com/grammyjs/grammY/blob/99a89e91f71fc21e00036b5a4fe48ea09b203da6/src/convenience/frameworks.ts#L21C1-L56C2
  */
@@ -42,41 +42,40 @@ export interface ReqResHandler<T = void> {
   handlerReturn?: Promise<T>;
 }
 
-
-type NitroModuleAdapter = (event: H3Event) => ReqResHandler<Update>
+type NitroModuleAdapter = (event: H3Event) => ReqResHandler<Update>;
 
 /** Native CloudFlare workers (module worker) */
 const nitroModule: NitroModuleAdapter = (event) => {
   return {
-      get update() { 
-        return readBody(event) as Promise<Update> 
+    get update() {
+      return readBody(event) as Promise<Update>;
     },
 
-      header: getHeader(event, 'X-Telegram-Bot-Api-Secret-Token') || undefined,
+    header: getHeader(event, 'X-Telegram-Bot-Api-Secret-Token') || undefined,
 
-      end: () => setResponseStatus(event, 200),
+    end: () => setResponseStatus(event, 200),
 
-      respond: async (json: string) => {
-        setResponseStatus(event, 200);
-        setHeader(event, 'Content-Type', 'application/json');
-        await sendStream(event, new ReadableStream({
-          start(controller) {
-            controller.enqueue(json);
-            controller.close();
-          },
-        }));
-      },
+    respond: async (json: string) => {
+      setResponseStatus(event, 200);
+      setHeader(event, 'Content-Type', 'application/json');
+      await sendStream(event, new ReadableStream({
+        start(controller) {
+          controller.enqueue(json);
+          controller.close();
+        },
+      }));
+    },
 
-      unauthorized: async () => {
-        setResponseStatus(event, 401);
-        setResponseHeader(event, 'Content-Type', 'application/json');
-        await sendStream(event, new ReadableStream({
-          start(controller) {
-            controller.enqueue('secret token is wrong');
-            controller.close();
-          },
-        }));
-      },
+    unauthorized: async () => {
+      setResponseStatus(event, 401);
+      setResponseHeader(event, 'Content-Type', 'application/json');
+      await sendStream(event, new ReadableStream({
+        start(controller) {
+          controller.enqueue('secret token is wrong');
+          controller.close();
+        },
+      }));
+    },
   };
 };
 

@@ -1,46 +1,94 @@
-import { Menu, } from "@grammyjs/menu";
-import { Bot } from "grammy";
-import type { UserFromGetMe } from "grammy/types";
-import type { H3Event } from "h3";
+import { Menu } from '@grammyjs/menu';
+import { eq } from 'drizzle-orm';
+import { Bot, Context, session, SessionFlavor } from 'grammy';
+import type { UserFromGetMe } from 'grammy/types';
+import type { StorageAdapter } from 'grammy/web';
+import { H3Event } from 'h3';
+import { TMessages } from '../db/schema';
+import type { useDrizzle } from './drizzle';
 
-
-export const useTelegram = (event?: H3Event) => {
-    if (!process.env.NITRO_BOT_TOKEN) throw new Error("BOT_TOKEN is not set");
-    if (!process.env.NITRO_BOT_INFO) throw new Error("BOT_INFO is not set");
-
-    const bot = new Bot(process.env.NITRO_BOT_TOKEN, { 
-        botInfo: JSON.parse(process.env.NITRO_BOT_INFO) as UserFromGetMe 
-    });
-
-    // Create the submenu
-    const subMenu = new Menu("sub-menu")
-        .text("Sub-item 1", async (ctx) => await ctx.reply("Sub-item 1!"))
-        .row()
-        .text("Sub-item 2", async (ctx) => await ctx.reply("Sub-item 2!"))
-        .row()
-        .back("Back");
-
-    // Create the main menu
-    const mainMenu = new Menu("main-menu")
-        .text("Option 1", async (ctx) => await ctx.reply("Option 1!"))
-        .row()
-        .submenu("Open Submenu", "sub-menu") // Links to the submenu
-        .row()
-        .text("Option 2", async (ctx) => await ctx.reply("Option 2!"))
-        .row()
-        .text("Close", async (ctx) => await ctx.menu.close());
-
-
-    mainMenu.register(subMenu);
-    bot.use(mainMenu)
-
-    bot.command("start", async (ctx) => await ctx.reply("menu:", { reply_markup: mainMenu }));
-    bot.on(":text", async (ctx) => await ctx.reply(`echo: ${ctx.message?.text}`));
-
-    // bot.api
-    //     .setMyCommands([{ command: "start", description: "Start " },])
-    //     .then(i => console.info('setMyCommands:', i))
-    //     .catch(e => console.error('setMyCommands:', e))
-
-    return bot;
+interface SessionData {
+  machines: { id: string; name: string }[];
 }
+
+type MyContext = Context & SessionFlavor<SessionData>;
+
+export class DrizzleAdapter<T> implements StorageAdapter<T> {
+  constructor(private db: ReturnType<typeof useDrizzle>) {}
+
+  async read(key: string): Promise<T | undefined> {
+    const message = await this.db
+      .select()
+      .from(TMessages)
+      .where(eq(TMessages.id, key))
+      .get();
+    if (!message?.message) return undefined;
+    return JSON.parse(message.message) as T;
+  }
+
+  async write(key: string, value: T): Promise<void> {
+    await this.db
+      .insert(TMessages)
+      .values({ id: key, message: JSON.stringify(value) })
+      .onConflictDoUpdate({
+        target: [TMessages.id],
+        set: { message: JSON.stringify(value) },
+      });
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.db
+      .delete(TMessages)
+      .where(eq(TMessages.id, key));
+  }
+}
+
+export const useTelegram = (event: H3Event) => {
+  if (!process.env.NITRO_BOT_TOKEN) throw new Error('BOT_TOKEN is not set');
+  if (!process.env.NITRO_BOT_INFO) throw new Error('BOT_INFO is not set');
+
+  const bot = new Bot<MyContext>(process.env.NITRO_BOT_TOKEN, {
+    botInfo: JSON.parse(process.env.NITRO_BOT_INFO) as UserFromGetMe,
+  });
+
+  // session
+  bot.use(session({
+    storage: new DrizzleAdapter(event.context.db),
+    initial: (): SessionData => ({
+      machines: [
+        { id: 'm1', name: 'Production Server' },
+        { id: 'm2', name: 'Staging Server' },
+      ],
+    }),
+  }));
+
+  // menu machines
+  const menuMachines = new Menu<MyContext>('machines-list')
+    .dynamic(async (ctx, range) => {
+      for (const machine of ctx.session.machines) {
+        range.text(machine.name, async ctx => await ctx.reply(machine.name));
+        range.row();
+      }
+    })
+    .back('Back');
+
+  // menu start
+  const menuStart = new Menu<MyContext>('main-menu')
+    .submenu('List Machines', 'machines-list')
+    .row()
+    .text('Close', async ctx => await ctx.menu.close());
+
+  // register menus
+  menuStart.register(menuMachines);
+  bot.use(menuStart);
+
+  // Command handlers
+  bot.command('start', async (ctx) => {
+    await ctx.reply('Machine menu', { reply_markup: menuStart });
+  });
+
+  // echo text
+  bot.on(':text', async ctx => await ctx.reply(`echo: ${ctx.message?.text}`));
+
+  return bot;
+};
