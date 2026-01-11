@@ -1,4 +1,3 @@
-import { useRuntimeConfig } from "#imports";
 import { Menu, } from "@grammyjs/menu";
 import { Bot } from "grammy";
 import type { UserFromGetMe } from "grammy/types";
@@ -6,13 +5,12 @@ import type { H3Event } from "h3";
 
 
 export const useTelegram = (event?: H3Event) => {
-    const config = useRuntimeConfig(event);
-    if (!config.BOT_TOKEN) throw new Error("BOT_TOKEN is not set");
+    if (!process.env.NITRO_BOT_TOKEN) throw new Error("BOT_TOKEN is not set");
+    if (!process.env.NITRO_BOT_INFO) throw new Error("BOT_INFO is not set");
 
-    const botInfo = config.BOT_INFO as unknown as UserFromGetMe
-    if (!botInfo) throw new Error("BOT_INFO is not set");
-
-    const bot = new Bot(config.BOT_TOKEN, { botInfo });
+    const bot = new Bot(process.env.NITRO_BOT_TOKEN, { 
+        botInfo: JSON.parse(process.env.NITRO_BOT_INFO) as UserFromGetMe 
+    });
 
     // Create the submenu
     const subMenu = new Menu("sub-menu")
@@ -39,10 +37,10 @@ export const useTelegram = (event?: H3Event) => {
     bot.command("start", async (ctx) => await ctx.reply("menu:", { reply_markup: mainMenu }));
     bot.on(":text", async (ctx) => await ctx.reply(`echo: ${ctx.message?.text}`));
 
-    bot.api
-        .setMyCommands([{ command: "start", description: "Start " },])
-        .then(i => console.info('setMyCommands:', i))
-        .catch(e => console.error('setMyCommands:', e))
+    // bot.api
+    //     .setMyCommands([{ command: "start", description: "Start " },])
+    //     .then(i => console.info('setMyCommands:', i))
+    //     .catch(e => console.error('setMyCommands:', e))
 
     return bot;
 }
