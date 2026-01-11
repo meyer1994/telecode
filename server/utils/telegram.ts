@@ -69,6 +69,21 @@ async function createMachine(conversation: MyConversation, ctx: MyContext) {
   await ctx.reply(`Machine "${message.text}" created.`);
 }
 
+async function deleteMachine(conversation: MyConversation, ctx: MyContext) {
+  const session = await conversation.external(ctx => ctx.session)
+
+  if (!session.selectedMachine) {
+    await ctx.reply('No machine selected.');
+    return;
+  }
+
+  session.machines = session.machines.filter(m => m.id !== session.selectedMachine);
+  session.selectedMachine = undefined;
+
+  await conversation.external(ctx => ctx.session = session);
+  await ctx.reply(`Machine "${session.selectedMachine}" deleted.`);
+}
+
 async function editMachineName(conversation: MyConversation, ctx: MyContext) {
   const session = await conversation.external(ctx => ctx.session)
 
@@ -84,21 +99,29 @@ async function editMachineName(conversation: MyConversation, ctx: MyContext) {
     return;
   }
 
-  await ctx.reply(`Enter new name for machine "${machine.name}":`);
+  await ctx.reply(`Are you sure you want to delete machine "${machine.name}"? (yes/no)`);
   const { message } = await conversation.waitFor('message:text');
 
-  if (!message?.text.trim()) {
-    await ctx.reply('No name provided.');
+  if (!message?.text?.trim()) {
+    await ctx.reply('No answer provided.');
     return;
   }
 
-  for (const machine of session.machines) {
-    if (machine.id !== session.selectedMachine) continue
-    machine.name = message.text;
+  const isNo = ['no', 'n'].includes(message.text.toLowerCase().trim())
+  const isYes = ['yes', 'y'].includes(message.text.toLowerCase().trim())
+
+  if (isNo) {
+    await ctx.reply('Deletion cancelled.');
+    return;
   }
 
-  await conversation.external(ctx => ctx.session = session);
-  await ctx.reply(`Machine "${machine.name}" updated.`);
+  if (isYes) {
+    session.machines = session.machines.filter(m => m.id !== session.selectedMachine);
+    session.selectedMachine = undefined;
+    await conversation.external(ctx => ctx.session = session);
+    await ctx.reply(`Machine "${machine.name}" deleted.`);
+    return;
+  }
 }
 
 export const useTelegram = (event: H3Event) => {
@@ -113,7 +136,10 @@ export const useTelegram = (event: H3Event) => {
   const menuMachineDetail = new Menu<MyContext>('machine-detail')
     .text('Edit Name', async ctx => await ctx.conversation.enter('editMachineName'))
     .row()
-    .text('Delete', async ctx => await ctx.reply('Button delete'))
+    .text('Delete', async ctx => {
+      await ctx.conversation.enter('deleteMachine');
+      await ctx.menu.back()
+    })
     .row()
     .back('Back')
     .text('Close', async ctx => await ctx.menu.close());
@@ -162,6 +188,7 @@ export const useTelegram = (event: H3Event) => {
   }));
   bot.use(createConversation(createMachine));
   bot.use(createConversation(editMachineName));
+  bot.use(createConversation(deleteMachine));
 
   // register menus
   bot.use(menuStart)
