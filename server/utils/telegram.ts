@@ -13,7 +13,7 @@ interface SessionData {
 
 type MyContext = Context & SessionFlavor<SessionData>;
 
-export class DrizzleAdapter<T> implements StorageAdapter<T> {
+class DrizzleAdapter<T> implements StorageAdapter<T> {
   constructor(private db: ReturnType<typeof useDrizzle>) {}
 
   async read(key: string): Promise<T | undefined> {
@@ -63,7 +63,7 @@ export const useTelegram = (event: H3Event) => {
   }));
 
   // menu machines
-  const menuMachines = new Menu<MyContext>('machines-list')
+  const menuMachinesList = new Menu<MyContext>('machines-list')
     .dynamic(async (ctx, range) => {
       for (const machine of ctx.session.machines) {
         range.text(machine.name, async ctx => await ctx.reply(machine.name));
@@ -73,13 +73,13 @@ export const useTelegram = (event: H3Event) => {
     .back('Back');
 
   // menu start
-  const menuStart = new Menu<MyContext>('main-menu')
+  const menuStart = new Menu<MyContext>('start')
     .submenu('List Machines', 'machines-list')
     .row()
     .text('Close', async ctx => await ctx.menu.close());
 
   // register menus
-  menuStart.register(menuMachines);
+  menuStart.register(menuMachinesList);
   bot.use(menuStart);
 
   // Command handlers
