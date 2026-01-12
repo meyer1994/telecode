@@ -18,7 +18,7 @@ import type { useDrizzle } from './drizzle';
 
 interface Session {
   currentElementId?: number | null;
-  history: Array<number | null>;
+  history: (number | null)[];
 }
 
 type MyContext = Context & SessionFlavor<Session> & ConversationFlavor<Context> & {
@@ -58,11 +58,11 @@ class DrizzleAdapter<T> implements StorageAdapter<T> {
 
 
 async function getOrGenerateButtons(
-  ai: Ai,
-  db: ReturnType<typeof useDrizzle>,
+  ctx: MyContext,
   parentId: number | null,
   userId: string | undefined
 ) {
+  const { ai, db } = ctx;
   // Get existing children
   const existing = parentId === null
     ? await db.select().from(TButtons).where(isNull(TButtons.parentId)).all()
@@ -72,29 +72,40 @@ async function getOrGenerateButtons(
   if (existing.length > 0) return existing;
 
   // Otherwise, generate new ones
-  let parentName: string | undefined = 'Root' 
-  if (parentId !== null) {
-    const parent = await db.select().from(TButtons).where(eq(TButtons.id, parentId)).get();
-    parentName = parent?.name;
+  try {
+    await ctx.react('🤔');
+
+    let parentName: string | undefined = 'Root' 
+    if (parentId !== null) {
+      const parent = await db.select().from(TButtons).where(eq(TButtons.id, parentId)).get();
+      parentName = parent?.name;
+    }
+    parentName = parentName ?? 'Root';
+
+    // Generate new elements using LLM
+    const generator = new ItemGenerator(ai, db);
+    const items = await generator.generate(parentName);
+    
+    if (items.length > 0) {
+      await db
+        .insert(TButtons)
+        .values(items.map(item => ({ name: item.name, emoji: item.emoji, parentId, discoveredBy: userId })));
+    }
+
+    // Query to get the inserted rows
+    const inserted = parentId === null
+      ? await db.select().from(TButtons).where(isNull(TButtons.parentId)).all()
+      : await db.select().from(TButtons).where(eq(TButtons.parentId, parentId)).all();
+
+    // Clear "thinking" reaction
+    await ctx.react([]);
+
+    return inserted;
+  } catch (e) {
+    console.error('Error generating buttons:', e);
+    await ctx.react('😱');
+    throw e;
   }
-  parentName = parentName ?? 'Root';
-
-  // Generate new elements using LLM
-  const generator = new ItemGenerator(ai, db);
-  const items = await generator.generate(parentName);
-  
-  if (items.length > 0) {
-    await db
-      .insert(TButtons)
-      .values(items.map(item => ({ name: item.name, emoji: item.emoji, parentId, discoveredBy: userId })));
-  }
-
-  // Query to get the inserted rows
-  const inserted = parentId === null
-    ? await db.select().from(TButtons).where(isNull(TButtons.parentId)).all()
-    : await db.select().from(TButtons).where(eq(TButtons.parentId, parentId)).all();
-
-  return inserted;
 }
 
 export class TelegramBot {
@@ -200,7 +211,7 @@ export class TelegramBot {
   private async dynamic(ctx: MyContext, range: MenuRange<MyContext>, nextMenuId: string) {
     const parentId = ctx.session.currentElementId ?? null;
     const userId = ctx.from?.id.toString();
-    const children = await getOrGenerateButtons(ctx.ai, ctx.db, parentId, userId);
+    const children = await getOrGenerateButtons(ctx, parentId, userId);
     
     let i = 0
     for (const child of children) {
