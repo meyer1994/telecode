@@ -3,6 +3,7 @@ import {
   type ConversationFlavor
 } from '@grammyjs/conversations';
 import { Menu, MenuRange } from '@grammyjs/menu';
+import { sequentialize } from '@grammyjs/runner';
 import { eq, isNull } from 'drizzle-orm';
 import { Bot, Context, session, SessionFlavor } from 'grammy';
 import { ignoreOld } from 'grammy-middlewares';
@@ -183,9 +184,12 @@ export class TelegramBot {
       await next();
     });
 
+    this.bot.use(sequentialize(ctx => ctx.from?.id.toString()));
+
     // session management
     this.bot.use(session({ 
       prefix: 'session:',
+      getSessionKey: (ctx) => ctx.from?.id.toString(),
       storage: new DrizzleAdapter(event.context.db),
       initial: (): Session => ({ 
         currentElementId: null, 
@@ -201,6 +205,7 @@ export class TelegramBot {
       storage: {
         type: 'key',
         prefix: 'conversation:',
+        getStorageKey: (ctx) => ctx.from?.id.toString(),
         adapter: new DrizzleAdapter(event.context.db)
       }
     }));
@@ -219,7 +224,6 @@ export class TelegramBot {
       
       // Ensure root buttons exist and are tracked in session
       await this.getChildrenAndTrack(ctx, null);
-      
       await ctx.reply(getStatsMessage(ctx), { reply_markup: menuDiscoveryA });
     });
 
