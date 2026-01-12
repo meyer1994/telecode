@@ -4,6 +4,10 @@ A discovery game Telegram bot built with Nitro and Cloudflare Workers. Users
 explore a tree of "buttons" (items) where new branches are generated on-the-fly
 using Cloudflare AI.
 
+<p align="center">
+  <img src="./screenshot.jpeg" alt="Infinite Buttons Telegram Bot Screenshot" width="350"/>
+</p>
+
 ## Game Mechanics
 
 **Infinite Buttons** is an exploration game where players navigate through an
