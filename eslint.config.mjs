@@ -1,27 +1,19 @@
+import eslint from '@eslint/js';
 import stylistic from '@stylistic/eslint-plugin';
-import globals from 'globals';
+import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
-  {
-    ignores: [
-      '.nitro/**',
-      '.output/**',
-      'dist/**',
-      'node_modules/**',
-    ],
-  },
-  ...tseslint.configs.recommended,
-  {
-    files: ['**/*.{js,ts,mjs,cjs}'],
-    languageOptions: {
-      globals: {
-        ...globals.node,
-        ...globals.browser,
+export default defineConfig(
+  eslint.configs.recommended,
+  tseslint.configs.strict,
+  tseslint.configs.stylistic,
+    tseslint.configs.strict,
+    {
+      plugins: {
+        '@stylistic': stylistic
       },
-    },
-    plugins: {
-      '@stylistic': stylistic,
-    },
-  },
+      rules: {
+        "@stylistic/no-multiple-empty-lines": ["error", { "max": 2, "maxEOF": 1, "maxBOF": 0 }],
+      }
+    }
 );
