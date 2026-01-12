@@ -27,7 +27,7 @@ importers:
         specifier: ^1.0.11
         version: 1.0.11
       h3:
-        specifier: 1.15.4
+        specifier: '1'
         version: 1.15.4
     devDependencies:
       '@stylistic/eslint-plugin':
