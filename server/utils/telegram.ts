@@ -11,14 +11,17 @@ import type { StorageAdapter } from 'grammy/web';
 import {
   H3Event
 } from 'h3';
-import { TButtons, TMessages } from '../db/schema';
-import { ItemGenerator } from './ai';
-import type { useDrizzle } from './drizzle';
+import { TButtons, TMessages } from '~~/server/db/schema';
+import { ItemGenerator } from '~~/server/utils/ai';
+import type { useDrizzle } from '~~/server/utils/drizzle';
 
 
 interface Session {
   currentElementId?: number | null;
   history: (number | null)[];
+  totalPressed: number;
+  viewedButtonIds: number[];
+  discoveredButtonIds: number[];
 }
 
 type MyContext = Context & SessionFlavor<Session> & ConversationFlavor<Context> & {
@@ -61,7 +64,7 @@ async function getOrGenerateButtons(
   ctx: MyContext,
   parentId: number | null,
   userId: string | undefined
-) {
+): Promise<typeof TButtons.$inferSelect[]> {
   const { ai, db } = ctx;
   // Get existing children
   const existing = parentId === null
@@ -77,8 +80,29 @@ async function getOrGenerateButtons(
 
     let parentName: string | undefined = 'Root' 
     if (parentId !== null) {
-      const parent = await db.select().from(TButtons).where(eq(TButtons.id, parentId)).get();
+      const parent = await db
+        .select()
+        .from(TButtons)
+        .where(eq(TButtons.id, parentId))
+        .get();
       parentName = parent?.name;
+    } else {
+      // For root, if nothing exists, we can provide defaults or generate
+      // Let's provide defaults for the very first time
+      const defaults = [
+        { name: 'Water', emoji: '💧', parentId: null },
+        { name: 'Fire', emoji: '🔥', parentId: null },
+        { name: 'Air', emoji: '💨', parentId: null },
+        { name: 'Earth', emoji: '🌍', parentId: null },
+      ];
+      
+      const inserted = await db
+        .insert(TButtons)
+        .values(defaults)
+        .returning();
+      
+      await ctx.react([]);
+      return inserted;
     }
     parentName = parentName ?? 'Root';
 
@@ -87,9 +111,20 @@ async function getOrGenerateButtons(
     const items = await generator.generate(parentName);
     
     if (items.length > 0) {
-      await db
+      const newlyDiscovered = await db
         .insert(TButtons)
-        .values(items.map(item => ({ name: item.name, emoji: item.emoji, parentId, discoveredBy: userId })));
+        .values(items.map(item => ({ 
+          name: item.name, 
+          emoji: item.emoji, 
+          parentId, discoveredBy: userId 
+        })))
+        .returning({ id: TButtons.id });
+
+      const discoveredIds = newlyDiscovered
+        .filter(row => !ctx.session.discoveredButtonIds.includes(row.id))
+        .map(row => row.id);
+
+      ctx.session.discoveredButtonIds.push(...discoveredIds);
     }
 
     // Query to get the inserted rows
@@ -107,6 +142,15 @@ async function getOrGenerateButtons(
     throw e;
   }
 }
+
+function getStatsMessage(ctx: MyContext) {
+  const depth = ctx.session.history.length;
+  const discovered = ctx.session.discoveredButtonIds.length;
+  const viewed = ctx.session.viewedButtonIds.length;
+  const pressed = ctx.session.totalPressed;
+  return `Infinite Buttons!\n\nDepth: ${depth}\nDiscovered: ${discovered}\nViewed: ${viewed}\nPressed: ${pressed}`;
+}
+
 
 export class TelegramBot {
   public bot: Bot<MyContext>;
@@ -130,7 +174,7 @@ export class TelegramBot {
     const { event } = this;
 
     // ignore old updates
-    this.bot.use(ignoreOld(60));
+    this.bot.use(ignoreOld(60 * 24 * 7));  // games last 7 days
 
     // inject ai and db into context
     this.bot.use(async (ctx, next) => {
@@ -143,7 +187,13 @@ export class TelegramBot {
     this.bot.use(session({ 
       prefix: 'session:',
       storage: new DrizzleAdapter(event.context.db),
-      initial: (): Session => ({ currentElementId: null, history: [] })
+      initial: (): Session => ({ 
+        currentElementId: null, 
+        history: [], 
+        totalPressed: 0,
+        viewedButtonIds: [],
+        discoveredButtonIds: [],
+      })
     }));
 
     // conversations support
@@ -163,23 +213,14 @@ export class TelegramBot {
     this.bot.command('start', async (ctx) => {
       ctx.session.currentElementId = null;
       ctx.session.history = [];
+      ctx.session.totalPressed = 0;
+      ctx.session.viewedButtonIds = [];
+      ctx.session.discoveredButtonIds = [];
       
-      const existingRoot = await ctx.db
-        .select()
-        .from(TButtons)
-        .where(isNull(TButtons.parentId))
-        .get();
-
-      if (!existingRoot) {
-          await ctx.db.insert(TButtons).values([
-            { name: 'Water', emoji: '💧', parentId: null },
-            { name: 'Fire', emoji: '🔥', parentId: null },
-            { name: 'Air', emoji: '💨', parentId: null },
-            { name: 'Earth', emoji: '🌍', parentId: null },
-          ]);
-        }
+      // Ensure root buttons exist and are tracked in session
+      await this.getChildrenAndTrack(ctx, null);
       
-      await ctx.reply('Infinite Buttons!', { reply_markup: menuDiscoveryA });
+      await ctx.reply(getStatsMessage(ctx), { reply_markup: menuDiscoveryA });
     });
 
     // Echo text
@@ -208,10 +249,20 @@ export class TelegramBot {
     return { menuDiscoveryA, menuDiscoveryB };
   }
 
-  private async dynamic(ctx: MyContext, range: MenuRange<MyContext>, nextMenuId: string) {
-    const parentId = ctx.session.currentElementId ?? null;
+  private async getChildrenAndTrack(ctx: MyContext, parentId: number | null) {
     const userId = ctx.from?.id.toString();
     const children = await getOrGenerateButtons(ctx, parentId, userId);
+    for (const child of children) {
+      if (!ctx.session.viewedButtonIds.includes(child.id)) {
+        ctx.session.viewedButtonIds.push(child.id);
+      }
+    }
+    return children;
+  }
+
+  private async dynamic(ctx: MyContext, range: MenuRange<MyContext>, nextMenuId: string) {
+    const parentId = ctx.session.currentElementId ?? null;
+    const children = await this.getChildrenAndTrack(ctx, parentId);
     
     let i = 0
     for (const child of children) {
@@ -221,6 +272,10 @@ export class TelegramBot {
       range.submenu(name, nextMenuId, async (ctx) => {
         ctx.session.history.push(ctx.session.currentElementId ?? null);
         ctx.session.currentElementId = child.id;
+        ctx.session.totalPressed++;
+        // Pre-fetch and track children for the next level to update stats
+        await this.getChildrenAndTrack(ctx, child.id);
+        await ctx.editMessageText(getStatsMessage(ctx));
       });
       if (++i % 2 === 0) range.row();
     }
@@ -229,6 +284,10 @@ export class TelegramBot {
       range.row().text('⬅️ Back', async (ctx) => {
         const prevId = ctx.session.history.pop();
         ctx.session.currentElementId = prevId ?? null;
+        ctx.session.totalPressed++;
+        // Pre-fetch and track children for the previous level to update stats
+        await this.getChildrenAndTrack(ctx, prevId ?? null);
+        await ctx.editMessageText(getStatsMessage(ctx));
         await ctx.menu.nav(nextMenuId);
       });
     }

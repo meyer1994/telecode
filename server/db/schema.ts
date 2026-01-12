@@ -1,5 +1,5 @@
-import { relations, sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { desc, sql } from 'drizzle-orm';
+import { AnySQLiteColumn, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const TMessages = sqliteTable('messages', {
   id: text('id').primaryKey(),
@@ -12,19 +12,23 @@ export const TMessages = sqliteTable('messages', {
     .notNull()
     .$onUpdate(() => sql`CURRENT_TIMESTAMP`)
     .default(sql`CURRENT_TIMESTAMP`),
-});
-
-export const RMessages = relations(TMessages, () => ({}));
+}, (t) => [
+  index('messages_created_at_index').on(desc(t.createdAt)),
+  index('messages_updated_at_index').on(desc(t.updatedAt)),
+]);
 
 export const TButtons = sqliteTable('buttons', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   emoji: text('emoji'),
-  parentId: integer('parent_id').references(() => TButtons.id),
+  parentId: integer('parent_id').references((): AnySQLiteColumn => TButtons.id),
   discoveredBy: text('discovered_by'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
-});
-
-export const RButtons = relations(TButtons, () => ({}));
+},(t) => [
+  index('buttons_name_index').on(t.name),
+  index('buttons_parent_id_index').on(t.parentId),
+  index('buttons_discovered_by_index').on(t.discoveredBy),
+  index('buttons_created_at_index').on(desc(t.createdAt)),
+]);

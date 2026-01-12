@@ -1,0 +1,191 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "0602957e-fd76-4f11-929c-633664e5e3e7",
+  "prevId": "73c2b385-2a07-491e-9357-86a895ac67f7",
+  "tables": {
+    "buttons": {
+      "name": "buttons",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "emoji": {
+          "name": "emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "discovered_by": {
+          "name": "discovered_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "buttons_name_index": {
+          "name": "buttons_name_index",
+          "columns": [
+            "name"
+          ],
+          "isUnique": false
+        },
+        "buttons_parent_id_index": {
+          "name": "buttons_parent_id_index",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "buttons_discovered_by_index": {
+          "name": "buttons_discovered_by_index",
+          "columns": [
+            "discovered_by"
+          ],
+          "isUnique": false
+        },
+        "buttons_created_at_index": {
+          "name": "buttons_created_at_index",
+          "columns": [
+            "\"created_at\" desc"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "buttons_parent_id_buttons_id_fk": {
+          "name": "buttons_parent_id_buttons_id_fk",
+          "tableFrom": "buttons",
+          "tableTo": "buttons",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "messages": {
+      "name": "messages",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "messages_created_at_index": {
+          "name": "messages_created_at_index",
+          "columns": [
+            "\"created_at\" desc"
+          ],
+          "isUnique": false
+        },
+        "messages_updated_at_index": {
+          "name": "messages_updated_at_index",
+          "columns": [
+            "\"updated_at\" desc"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "buttons_created_at_index": {
+        "columns": {
+          "\"created_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "messages_created_at_index": {
+        "columns": {
+          "\"created_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "messages_updated_at_index": {
+        "columns": {
+          "\"updated_at\" desc": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}
