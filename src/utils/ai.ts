@@ -17,6 +17,7 @@ export class ItemGenerator {
    * Generates 10 items and returns up to 4 that are new (not in DB).
    */
   async generate(parentName: string) {
+    // @ts-expect-error: the model exists but it is not generate by warngler
     const result = await this.ai.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
       messages: [
         {
