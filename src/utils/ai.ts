@@ -1,7 +1,7 @@
 import { inArray } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import * as schema from "~~/server/db/schema";
-import { TButtons } from "~~/server/db/schema";
+import * as schema from "../db/schema";
+import { TButtons } from "../db/schema";
 
 
 export class ItemGenerator {
@@ -17,7 +17,7 @@ export class ItemGenerator {
    * Generates 10 items and returns up to 4 that are new (not in DB).
    */
   async generate(parentName: string) {
-    const result = await this.ai.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+    const result = await this.ai.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
       messages: [
         {
           role: "system",

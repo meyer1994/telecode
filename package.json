@@ -2,13 +2,12 @@
   "name": "tlg",
   "private": true,
   "scripts": {
-    "dev": "nitro dev",
-    "build": "nitro build",
-    "prepare": "nitro prepare",
+    "dev": "wrangler dev",
+    "build": "tsc",
     "preview": "wrangler dev",
-    "typecheck": "pnpm cf:types && pnpm prepare && tsc --noEmit",
+    "typecheck": "pnpm cf:types && tsc --noEmit",
     "cf:types": "pnpm wrangler types",
-    "cf:deploy": "pnpm typecheck && pnpm build && pnpm wrangler deploy",
+    "cf:deploy": "pnpm typecheck && pnpm wrangler deploy",
     "cf:db:generate": "pnpm drizzle-kit generate",
     "cf:db:migrate": "pnpm wrangler d1 migrations apply tlg",
     "lint": "eslint .",
@@ -22,8 +21,6 @@
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
     "globals": "^17.0.0",
-    "nitro-cloudflare-dev": "^0.2.2",
-    "nitropack": "^2.13.0",
     "typescript-eslint": "^8.52.0",
     "wrangler": "^4.58.0"
   },
@@ -35,7 +32,6 @@
     "drizzle-orm": "^0.45.1",
     "grammy": "^1.39.2",
     "grammy-middlewares": "^1.0.11",
-    "h3": "1",
     "langchain": "^1.2.7",
     "zod": "^4.3.5"
   }
