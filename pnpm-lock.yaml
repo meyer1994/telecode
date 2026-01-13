@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@cloudflare/sandbox':
+        specifier: ^0.6.10
+        version: 0.6.10
       '@grammyjs/conversations':
         specifier: ^2.1.1
         version: 2.1.1(grammy@1.39.2)
@@ -69,9 +72,23 @@ packages:
   '@cfworker/json-schema@4.1.1':
     resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
 
+  '@cloudflare/containers@0.0.30':
+    resolution: {integrity: sha512-i148xBgmyn/pje82ZIyuTr/Ae0BT/YWwa1/GTJcw6DxEjUHAzZLaBCiX446U9OeuJ2rBh/L/9FIzxX5iYNt1AQ==}
+
   '@cloudflare/kv-asset-handler@0.4.1':
     resolution: {integrity: sha512-Nu8ahitGFFJztxUml9oD/DLb7Z28C8cd8F46IVQ7y5Btz575pvMY8AqZsXkX7Gds29eCKdMgIHjIvzskHgPSFg==}
     engines: {node: '>=18.0.0'}
+
+  '@cloudflare/sandbox@0.6.10':
+    resolution: {integrity: sha512-rQygMktW45IPay8u326Eg5iAnuRAkROK3R2HjsN3xBqiqneNSYwdww+xxa0PuY+gkC/5ykzaCtXhE1LpOFhM+w==}
+    peerDependencies:
+      '@openai/agents': ^0.3.3
+      '@opencode-ai/sdk': ^1.0.137
+    peerDependenciesMeta:
+      '@openai/agents':
+        optional: true
+      '@opencode-ai/sdk':
+        optional: true
 
   '@cloudflare/unenv-preset@2.8.0':
     resolution: {integrity: sha512-oIAu6EdQ4zJuPwwKr9odIEqd8AV96z1aqi3RBEA4iKaJ+Vd3fvuI6m5EDC7/QCv+oaPIhy1SkYBYxmD09N+oZg==}
@@ -1659,9 +1676,15 @@ snapshots:
 
   '@cfworker/json-schema@4.1.1': {}
 
+  '@cloudflare/containers@0.0.30': {}
+
   '@cloudflare/kv-asset-handler@0.4.1':
     dependencies:
       mime: 3.0.0
+
+  '@cloudflare/sandbox@0.6.10':
+    dependencies:
+      '@cloudflare/containers': 0.0.30
 
   '@cloudflare/unenv-preset@2.8.0(unenv@2.0.0-rc.24)(workerd@1.20260107.1)':
     dependencies:

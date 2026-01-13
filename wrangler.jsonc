@@ -4,7 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tlg",
+  "name": "telecode",
   "main": "src/index.ts",
   "compatibility_date": "2026-01-11",
   "compatibility_flags": [
@@ -28,15 +28,34 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "tlg",
-      "database_id": "750c2fd8-0234-490a-b5ce-953ff782b5ce",
+      "database_name": "telecode",
+      "database_id": "ddac5765-949c-4397-802b-c8398056d830",
       "migrations_dir": "./src/db/migrations"
     }
   ],
-  "ai": {
-    "binding": "AI",
-    "remote": true
-  }
+  "containers": [
+    {
+      "class_name": "Sandbox",
+      "image": "docker.io/cloudflare/sandbox:0.3.3",
+      "instance_type": "lite"
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "Sandbox",
+        "name": "Sandbox",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "new_sqlite_classes": [
+        "Sandbox"
+      ],
+      "tag": "v1",
+    },
+  ],
   /**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

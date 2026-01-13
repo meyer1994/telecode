@@ -6,10 +6,11 @@
     "build": "tsc",
     "preview": "wrangler dev",
     "typecheck": "pnpm cf:types && tsc --noEmit",
+    "clean": "rm -rf .wrangler node_modules",
     "cf:types": "pnpm wrangler types",
     "cf:deploy": "pnpm typecheck && pnpm wrangler deploy",
     "cf:db:generate": "pnpm drizzle-kit generate",
-    "cf:db:migrate": "pnpm wrangler d1 migrations apply tlg",
+    "cf:db:migrate": "pnpm wrangler d1 migrations apply telecode",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
@@ -25,6 +26,7 @@
     "wrangler": "^4.58.0"
   },
   "dependencies": {
+    "@cloudflare/sandbox": "^0.6.10",
     "@grammyjs/conversations": "^2.1.1",
     "@grammyjs/menu": "^1.3.1",
     "@grammyjs/storage-cloudflare": "^2.4.2",

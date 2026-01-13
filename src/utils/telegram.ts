@@ -1,29 +1,21 @@
+import { getSandbox, Sandbox } from '@cloudflare/sandbox';
 import {
   conversations,
   type ConversationFlavor
 } from '@grammyjs/conversations';
-import { Menu } from '@grammyjs/menu';
-import { eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { Bot, Context, session, SessionFlavor } from 'grammy';
 import { ignoreOld } from 'grammy-middlewares';
 import type { UserFromGetMe } from 'grammy/types';
 import type { StorageAdapter } from 'grammy/web';
-import { TButtons, TMessages } from '../db/schema';
-import { ItemGenerator } from './ai';
+import { TMessages } from '../db/schema';
 import { useDrizzle } from './drizzle';
 
-
 interface Session {
-  timestamp: number;
-  currentElementId?: number | null;
-  history: (number | null)[];
-  totalPressed: number;
-  viewedButtonIds: number[];
-  discoveredButtonIds: number[];
+  sandboxId?: string | null;
 }
 
 type MyContext = Context & SessionFlavor<Session> & ConversationFlavor<Context> & {
-  ai: Ai;
   db: ReturnType<typeof useDrizzle>;
 }
 
@@ -60,16 +52,17 @@ class DrizzleAdapter<T> implements StorageAdapter<T> {
   }
 }
 
-
 export class TelegramBot {
   public bot: Bot<MyContext>;
   private db: ReturnType<typeof useDrizzle>;
   private env: Env;
+  private sandbox: DurableObjectNamespace<Sandbox>;
 
   constructor(db: ReturnType<typeof useDrizzle>, env: Env) {
     console.info('TelegramBot: Initializing bot...');
     this.db = db;
     this.env = env;
+    this.sandbox = env.Sandbox as unknown as DurableObjectNamespace<Sandbox>;
 
     const botInfo = JSON.parse(env.NITRO_BOT_INFO) as UserFromGetMe;
     this.bot = new Bot<MyContext>(env.NITRO_BOT_TOKEN, { botInfo });
@@ -83,20 +76,25 @@ export class TelegramBot {
   private setupMiddleware() {
     console.info('TelegramBot: Setting up middleware...');
 
+    this.bot.use(async (ctx, next) => {
+      console.info(`TelegramBot:`, { update: ctx.update.update_id });
+      try {
+        await next();
+      } catch (error) {
+        console.error(`TelegramBot: Error in middleware: ${error}`);
+        throw error;
+      }
+    });
+
     // ignore old updates
-    this.bot.use(ignoreOld(60 * 24 * 7));  // games last 7 days
+    this.bot.use(ignoreOld(60 * 24)); // 24 hours
 
     // session management
     this.bot.use(session({ 
       prefix: 'session:',
       storage: new DrizzleAdapter(this.db),
       initial: (): Session => ({ 
-        timestamp: new Date().getTime(),
-        currentElementId: null, 
-        history: [], 
-        totalPressed: 0,
-        viewedButtonIds: [],
-        discoveredButtonIds: [],
+        sandboxId: null,
       })
     }));
 
@@ -114,128 +112,81 @@ export class TelegramBot {
 
   private setupHandlers() {
     console.info('TelegramBot: Setting up handlers...');
-    const { menuDiscoveryA } = this.setupMenus();
 
-    // Command handlers
-    this.bot.command('start', async (ctx) => {
-      console.info(`TelegramBot: /start command received from user ${ctx.from?.id}`);
-      ctx.session.timestamp = new Date().getTime();
-      ctx.session.currentElementId = null;
-      ctx.session.history = [];
-      ctx.session.totalPressed = 0;
-      ctx.session.viewedButtonIds = [];
-      ctx.session.discoveredButtonIds = [];
-      await ctx.reply('Infinite Buttons!', { reply_markup: menuDiscoveryA });
+    // Create command - creates a machine if one doesn't exist
+    this.bot.command('create', async (ctx) => {
+      console.info(`TelegramBot: /create command received from user ${ctx.from?.id}`);
+      
+      if (ctx.session.sandboxId) {
+        await ctx.reply('A machine already exists for this chat. Use /destroy to remove it first.');
+        return;
+      }
+
+      try {
+        const chatId = ctx.chat?.id.toString() || '';
+        const sandboxId = `chat-${chatId}`;
+        const sandbox = getSandbox(this.sandbox, sandboxId);
+        await sandbox.exec('echo "Hello, world!"');
+        ctx.session.sandboxId = sandboxId;
+        await ctx.reply('Machine created successfully!');
+      } catch (error) {
+        console.error(`TelegramBot: Error creating machine: ${error}`);
+        await ctx.reply('Failed to create machine. Please try again later.');
+      }
     });
 
-    // Echo text
-    this.bot.on(':text', async ctx => await ctx.reply(`echo: ${ctx.message?.text}`));
-  }
+    // Exec command - executes a command on the machine
+    this.bot.command('exec', async (ctx) => {
+      console.info(`TelegramBot: /exec command received from user ${ctx.from?.id}`);
+      
+      if (!ctx.session.sandboxId) {
+        await ctx.reply('No machine exists for this chat. Use /create to create one first.');
+        return;
+      }
 
-  private async dynamicFetchChildren(ctx: MyContext) {
-    try {
-      await ctx.replyWithChatAction('typing');
-      return await this.fetchChildren(ctx.session.currentElementId);
-    } catch (error) {
-      console.error(`TelegramBot: Error fetching children for id ${ctx.session.currentElementId}: ${error}`);
-      await ctx.react('🤬');
-      throw error;
-    }
-  }
+      const command = ctx.message?.text?.split(' ').slice(1).join(' ');
+      if (!command) {
+        await ctx.reply('Please provide a command to execute. Usage: /exec <command>');
+        return;
+      }
 
-  private setupMenus() {
-    const menuDiscoveryA = new Menu<MyContext>('discovery-a')
-      .dynamic(async (ctx, range) => {
-        const children = await this.dynamicFetchChildren(ctx);
+      try {
+        const sandbox = getSandbox(this.sandbox, ctx.session.sandboxId);
+        
+        await ctx.replyWithChatAction('typing');
+        const result = await sandbox.exec(command);
+        
+        const output = result.stdout || result.stderr || 'Command executed successfully (no output)';
+        await ctx.reply(`Output:\n\`\`\`\n${output}\n\`\`\``, { parse_mode: 'Markdown' });
+      } catch (error) {
+        console.error(`TelegramBot: Error executing command: ${error}`);
+        await ctx.reply(`Error executing command: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
 
-        let i = 0;
-        for (const child of children) {
-          const name = child.emoji ? `${child.emoji} ${child.name}` : child.name;
-          
-          range.text(name, async (ctx) => {
-            ctx.session.currentElementId = child.id;
-            await ctx.menu.nav('discovery-b');
-          });
+    // Destroy command - destroys the machine
+    this.bot.command('destroy', async (ctx) => {
+      console.info(`TelegramBot: /destroy command received from user ${ctx.from?.id}`);
+      
+      if (!ctx.session.sandboxId) {
+        await ctx.reply('No machine exists for this chat.');
+        return;
+      }
 
-          if (++i % 2 === 0) range.row();
-        }
-      })
-      .row()
-      .text('Close', async (ctx) => await ctx.menu.close());
+      try {
+        const sandbox = getSandbox(this.sandbox, ctx.session.sandboxId);
+        await sandbox.destroy();
+        ctx.session.sandboxId = null;
+        await ctx.reply('Machine destroyed successfully.');
+      } catch (error) {
+        console.error(`TelegramBot: Error destroying machine: ${error}`);
+        await ctx.reply(`Error destroying machine: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
 
-    const menuDiscoveryB = new Menu<MyContext>('discovery-b')
-      .dynamic(async (ctx, range) => {
-        const children = await this.dynamicFetchChildren(ctx);
-
-        let i = 0;
-        for (const child of children) {
-          const name = child.emoji ? `${child.emoji} ${child.name}` : child.name;
-          
-          range.text(name, async (ctx) => {
-            ctx.session.currentElementId = child.id;
-            await ctx.menu.nav('discovery-a');
-          });
-
-          if (++i % 2 === 0) range.row();
-        }
-      })
-      .row()
-      .text('Close', async (ctx) => await ctx.menu.close());
-
-    menuDiscoveryA.register(menuDiscoveryB);
-    this.bot.use(menuDiscoveryA);
-
-    return { menuDiscoveryA, menuDiscoveryB };
-  }
-
-  private async fetchChildren(id: number | null | undefined) {
-    const children: typeof TButtons.$inferSelect[] = id
-      ? await this.db.select().from(TButtons).where(eq(TButtons.parentId, id)).all()
-      : await this.db.select().from(TButtons).where(isNull(TButtons.parentId)).all();
-
-    const isRoot = id === null || id === undefined;
-    const hasChildren = children.length > 0;
-
-    // already have children, return them
-    if (!isRoot && hasChildren) {
-      return children;
-    }
-
-    if (isRoot && hasChildren) {
-      return children;
-    }
-
-    // nothin in DB, create defaults
-    if (isRoot && !hasChildren) {
-      return await this.db
-        .insert(TButtons)
-        .values([
-          { name: 'Water', emoji: '💧', parentId: null },
-          { name: 'Fire', emoji: '🔥', parentId: null },
-          { name: 'Air', emoji: '💨', parentId: null },
-          { name: 'Earth', emoji: '🌍', parentId: null },
-        ])
-        .returning();
-    }
-
-    const button = await this.db
-      .select()
-      .from(TButtons)
-      .where(eq(TButtons.id, id as number))
-      .get();
-
-    if (!button) throw new Error(`Button with id ${id} not found`);
-
-    const generator = new ItemGenerator(this.env.AI, this.db);
-    const items = await generator.generate(button.name);
-
-    return await this.db
-      .insert(TButtons)
-      .values(items.map(item => ({ 
-        name: item.name, 
-        emoji: item.emoji, 
-        parentId: button.id,
-      })))
-      .returning();
+    this.bot.on('message:text', async (ctx) => {
+      console.info(`TelegramBot: Message text received from user ${ctx.from?.id}: ${ctx.message?.text}`);
+      await ctx.reply('echo: ' + ctx.message?.text);
+    });
   }
 }
