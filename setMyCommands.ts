@@ -7,6 +7,7 @@ const main = async () => {
     { command: "exec", description: "Execute a command" },
     { command: "create", description: "Create new machine" },
     { command: "destroy", description: "Destroy the machine" },
+    { command: "test", description: "Test the machine" },
   ]);
   console.log('Commands set', commands);
 };

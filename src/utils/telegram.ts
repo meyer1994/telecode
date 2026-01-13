@@ -4,7 +4,7 @@ import {
   type ConversationFlavor
 } from '@grammyjs/conversations';
 import { eq } from 'drizzle-orm';
-import { Bot, Context, session, SessionFlavor } from 'grammy';
+import { Bot, Context, Keyboard, session, SessionFlavor } from 'grammy';
 import { ignoreOld } from 'grammy-middlewares';
 import type { UserFromGetMe } from 'grammy/types';
 import type { StorageAdapter } from 'grammy/web';
@@ -168,10 +168,8 @@ export class TelegramBot {
     this.bot.command('destroy', async (ctx) => {
       console.info(`TelegramBot: /destroy command received from user ${ctx.from?.id}`);
       
-      if (!ctx.session.sandboxId) {
-        await ctx.reply('No machine exists for this chat.');
-        return;
-      }
+      if (!ctx.session.sandboxId)
+        return await ctx.reply('no machine exists. use `/create` to create one first.');
 
       try {
         const sandbox = getSandbox(this.sandbox, ctx.session.sandboxId);
@@ -180,13 +178,48 @@ export class TelegramBot {
         await ctx.reply('Machine destroyed successfully.');
       } catch (error) {
         console.error(`TelegramBot: Error destroying machine: ${error}`);
-        await ctx.reply(`Error destroying machine: ${error instanceof Error ? error.message : String(error)}`);
+        return await ctx.reply(`Error destroying machine: ${error instanceof Error ? error.message : String(error)}`);
       }
+    });
+
+    // Test command - tests the machine
+    this.bot.command('test', async (ctx) => {
+      // const keyboard = new InlineKeyboard()
+      //   .text('Test 1', 'test1')
+      //   .text('Test 2', 'test2')
+      //   .row()
+      //   .text('Test 3', 'test3')
+      //   .text('Test 4', 'test4')
+      const custom = new Keyboard()
+        .text('/exec ls .')
+        .text('/exec ls . -lh')
+        .text('/exec pwd')
+        .text('/exec date')
+        .row()
+        .text('/exec whoami')
+        .text('/exec uname -a')
+        .text('/exec ps')
+        .text('/exec uuidgen')
+        .persistent()
+      await ctx.reply('testing...', { reply_markup: custom });
     });
 
     this.bot.on('message:text', async (ctx) => {
       console.info(`TelegramBot: Message text received from user ${ctx.from?.id}: ${ctx.message?.text}`);
-      await ctx.reply('echo: ' + ctx.message?.text);
+      if (!ctx.message?.text?.startsWith('.')) return await ctx.reply('echo: ' + ctx.message?.text);
+      const command = ctx.message?.text?.slice(1) as string;
+
+      if (!ctx.session.sandboxId) 
+        return await ctx.reply('no machine exists. use `/create` to create one first.');
+
+      const sandbox = getSandbox(this.sandbox, ctx.session.sandboxId as string);
+      const result = await sandbox.exec(command);
+      await ctx.reply(`output: \`\`\`\n${result.stdout}\n\`\`\``, { parse_mode: 'Markdown' });
+    });
+
+    this.bot.on('callback_query:data', async (ctx) => {
+      console.info(`TelegramBot: Callback query data received from user ${ctx.from?.id}: ${ctx.callbackQuery?.data}`);
+      await ctx.answerCallbackQuery();
     });
   }
 }
