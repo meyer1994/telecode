@@ -124,7 +124,7 @@ export class TelegramBot {
 
       try {
         const chatId = ctx.chat?.id.toString() || '';
-        const sandboxId = `chat-${chatId}`;
+        const sandboxId = `container-${chatId}`;
         const sandbox = getSandbox(this.sandbox, sandboxId);
         await sandbox.exec('echo "Hello, world!"');
         ctx.session.sandboxId = sandboxId;

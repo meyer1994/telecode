@@ -6,22 +6,25 @@
     "build": "tsc",
     "preview": "wrangler dev",
     "typecheck": "pnpm cf:types && tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "clean": "rm -rf .wrangler node_modules",
+    "tl:commands": "pnpx dotenv-cli -- pnpm tsx setMyCommands.ts",
     "cf:types": "pnpm wrangler types",
     "cf:deploy": "pnpm typecheck && pnpm wrangler deploy",
     "cf:db:generate": "pnpm drizzle-kit generate",
-    "cf:db:migrate": "pnpm wrangler d1 migrations apply telecode",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "cf:db:migrate": "pnpm wrangler d1 migrations apply telecode"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@stylistic/eslint-plugin": "^5.7.0",
     "@types/node": "^25.0.6",
+    "dotenv": "^17.2.3",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
     "globals": "^17.0.0",
+    "tsx": "^4.21.0",
     "typescript-eslint": "^8.53.0",
     "wrangler": "^4.58.0"
   },

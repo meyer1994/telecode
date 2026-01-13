@@ -36,8 +36,8 @@
   "containers": [
     {
       "class_name": "Sandbox",
-      "image": "docker.io/cloudflare/sandbox:0.3.3",
-      "instance_type": "lite"
+      "image": "./Dockerfile",
+      "instance_type": "basic"
     },
   ],
   "durable_objects": {
