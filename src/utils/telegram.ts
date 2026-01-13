@@ -200,8 +200,22 @@ export class TelegramBot {
         .text('/exec uname -a')
         .text('/exec ps')
         .text('/exec uuidgen')
+        .oneTime()
         .persistent()
       await ctx.reply('testing...', { reply_markup: custom });
+    });
+
+    this.bot.command('help', async (ctx) => {
+      const message = [
+        'Available commands:',
+        '.<cmd> - short for /exec <command>',
+        '/exec <cmd> - execute a command on the machine',
+        '/create - create a new machine',
+        '/destroy - destroy the machine',
+        '/test - test the machine (dev)',
+        '/help - show help message',
+      ].join('\n');
+      await ctx.reply(message);
     });
 
     this.bot.on('message:text', async (ctx) => {
