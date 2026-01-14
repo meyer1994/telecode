@@ -14,10 +14,12 @@ import { useDrizzle } from './drizzle';
 
 const HELP_MESSAGE = [
   'Available commands:',
-  '.<cmd> - short for /exec <command>',
+  '.<cmd> - short for /exec <cmd>',
   '/exec <cmd> - execute a command on the machine',
   '/create - create a new machine',
   '/destroy - destroy the machine',
+  '/file <file> - read a file from the machine',
+  '/env <key>=<value> - set an env var on the machine',
   '/test - test the machine (dev)',
   '/help - show help message',
 ].join('\n');
@@ -145,7 +147,6 @@ export class TelegramBot {
     this.bot.command('help', async ctx => await ctx.reply(HELP_MESSAGE));
     // Test command - tests the machine
     this.bot.command('test', async ctx => await this.cmdTest(ctx));
-
 
     this.bot.on('message:text', async (ctx) => {
       if (!ctx.message?.text?.startsWith('.')) return
