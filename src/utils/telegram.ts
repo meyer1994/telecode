@@ -129,133 +129,109 @@ export class TelegramBot {
   private setupHandlers() {
     console.info('TelegramBot: Setting up handlers...');
 
-    this.bot.command('start', async (ctx) => {
-      console.info(`TelegramBot: /start command received from user ${ctx.from?.id}`);
-
-      try {
-        // feedback
-        await Promise.all([
-          await ctx.react('🤔'),
-          await ctx.reply(HELP_MESSAGE),
-          await ctx.replyWithChatAction('typing'),
-        ])
-
-        // create sandbox
-        const sandbox = this.getSandbox(ctx);
-        await sandbox.exec('echo "Hello, world!"');
-        await ctx.reply('your sandbox should be ready in a minute');
-        await ctx.reply("try `.date` to see the time when it's ready", { parse_mode: 'Markdown' });
-      } catch (error) {
-        console.error(`TelegramBot: Error starting bot: ${error}`);
-        await Promise.all([
-          await ctx.react('🤷'),
-          await ctx.reply(`failed to start bot: ${error instanceof Error ? error.message : String(error)}`)
-        ]);
-      }
-    });
-
+    // Start command - starts the bot
+    this.bot.command('start', async ctx => await this.cmdStart(ctx));
     // Create command - creates a machine if one doesn't exist
-    this.bot.command('create', async (ctx) => {
-      console.info(`TelegramBot: /create command received from user ${ctx.from?.id}`);
-
-      try {
-        await ctx.replyWithChatAction('typing');
-        const sandbox = this.getSandbox(ctx);
-        await sandbox.exec('echo "Hello, world!"');
-        await ctx.reply('machine created successfully');
-      } catch (error) {
-        console.error(`TelegramBot: Error creating machine: ${error}`);
-        await ctx.reply('failed to create machine');
-      }
-    });
-
+    this.bot.command('create', async ctx => await this.cmdCreate(ctx));
     // Exec command - executes a command on the machine
-    this.bot.command('exec', async (ctx) => {
-      console.info(`TelegramBot: /exec command received from user ${ctx.from?.id}`);
-      
-      if (!ctx.match) {
-        await ctx.reply('provide a command');
-        return;  
-      }
-
-      try {        
-        await ctx.replyWithChatAction('typing');
-        const sandbox = this.getSandbox(ctx);
-        const result = await sandbox.exec(ctx.match[1]);
-        const output = result.stdout || result.stderr
-        await ctx.reply(`output:\n\`\`\`\n${output}\n\`\`\``, { parse_mode: 'Markdown' });
-      } catch (error) {
-        console.error(`TelegramBot: Error executing command: ${error}`);
-        await ctx.reply(`command failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-
+    this.bot.command('exec', async ctx => await this.cmdExec(ctx));
     // Destroy command - destroys the machine
-    this.bot.command('destroy', async (ctx) => {
-      console.info(`TelegramBot: /destroy command received from user ${ctx.from?.id}`);
-      
-      try {
-        const sandbox = this.getSandbox(ctx);
-        await sandbox.destroy();
-        await ctx.reply('machine destroyed successfully');
-      } catch (error) {
-        console.error(`TelegramBot: Error destroying machine: ${error}`);
-        await ctx.reply(`machine destruction failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-
+    this.bot.command('destroy', async ctx => await this.cmdDestroy(ctx));
+    // Help command - shows the help message
+    this.bot.command('help', async ctx => await ctx.reply(HELP_MESSAGE));
     // Test command - tests the machine
-    this.bot.command('test', async (ctx) => {
-      // const keyboard = new InlineKeyboard()
-      //   .text('Test 1', 'test1')
-      //   .text('Test 2', 'test2')
-      //   .row()
-      //   .text('Test 3', 'test3')
-      //   .text('Test 4', 'test4')
-      // const custom = new Keyboard()
-      //   .text('/exec ls .')
-      //   .text('/exec ls . -lh')
-      //   .text('/exec pwd')
-      //   .text('/exec date')
-      //   .row()
-      //   .text('/exec whoami')
-      //   .text('/exec uname -a')
-      //   .text('/exec ps')
-      //   .text('/exec uuidgen')
-      //   .oneTime()
-      //   .persistent()
-      // await ctx.reply('testing...', { reply_markup: custom });
-    });
+    this.bot.command('test', async ctx => await this.cmdTest(ctx));
 
-    this.bot.command('help', async (ctx) => {
-      await ctx.reply(HELP_MESSAGE);
-    });
 
     this.bot.on('message:text', async (ctx) => {
-      console.info(`TelegramBot: Message text received from user ${ctx.from?.id}: ${ctx.message?.text}`);
-      
-      if (!ctx.message?.text?.startsWith('.')) {
-        // catch-all is in here
-        await ctx.reply('echo: ' + ctx.message?.text);
-        return;
-      }
-      
-      try {
-        await ctx.replyWithChatAction('typing');
-        const command = ctx.message?.text?.slice(1) as string;
-        const sandbox = this.getSandbox(ctx);
-        const result = await sandbox.exec(command);
-        const output = result.stdout || result.stderr
-        await ctx.reply(`output:\n\`\`\`\n${output}\n\`\`\``, { parse_mode: 'Markdown' });
-      } catch (error) {
-        console.error(`TelegramBot: Error executing command: ${error}`);
-        await ctx.reply(`command failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      if (!ctx.message?.text?.startsWith('.')) return
+      await this.cmdExec(ctx);
+    });      
+
+    this.bot.on('message:text', async (ctx) => {
+      if (ctx.message?.text?.startsWith('.')) return
+      await ctx.reply('echo: ' + ctx.message?.text);
     });
 
     this.bot.on('callback_query:data', async (ctx) => {
-      console.info(`TelegramBot: Callback query data received from user ${ctx.from?.id}: ${ctx.callbackQuery?.data}`);
       await ctx.answerCallbackQuery();
     });
+  }
+
+  private async cmdStart(ctx: MyContext) {
+    console.info(`TelegramBot: /start command received from user ${ctx.from?.id}`);
+
+    try {
+      // feedback
+      await Promise.all([
+        await ctx.react('🤔'),
+        await ctx.reply(HELP_MESSAGE),
+        await ctx.replyWithChatAction('typing'),
+      ])
+
+      // create sandbox
+      const sandbox = this.getSandbox(ctx);
+      await sandbox.exec('echo "Hello, world!"');
+      await ctx.reply('your sandbox should be ready in a minute');
+      await ctx.reply("try `.date` to see the time when it's ready", { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error(`TelegramBot: Error starting bot: ${error}`);
+      await Promise.all([
+        await ctx.react('🤷'),
+        await ctx.reply(`failed to start bot: ${error instanceof Error ? error.message : String(error)}`)
+      ]);
+    }
+  }
+
+  private async cmdCreate(ctx: MyContext) {
+    console.info(`TelegramBot: /create command received from user ${ctx.from?.id}`);
+
+    try {
+      await ctx.replyWithChatAction('typing');
+      const sandbox = this.getSandbox(ctx);
+      await sandbox.exec('echo "Hello, world!"');
+      await ctx.reply('machine created successfully');
+    } catch (error) {
+      console.error(`TelegramBot: Error creating machine: ${error}`);
+      await ctx.reply(`machine creation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async cmdDestroy(ctx: MyContext) {
+    console.info(`TelegramBot: /destroy command received from user ${ctx.from?.id}`);
+      
+    try {
+      const sandbox = this.getSandbox(ctx);
+      await sandbox.destroy();
+      await ctx.reply('machine destroyed successfully');
+    } catch (error) {
+      console.error(`TelegramBot: Error destroying machine: ${error}`);
+      await ctx.reply(`machine destruction failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async cmdExec(ctx: MyContext) {
+    console.info(`TelegramBot: /exec command received from user ${ctx.from?.id}`);
+      
+    if (!ctx.match) {
+      await ctx.reply('provide a command');
+      return;  
+    }
+
+    try {        
+      await ctx.replyWithChatAction('typing');
+      const sandbox = this.getSandbox(ctx);
+      const result = await sandbox.exec(ctx.match[1]);
+      const output = result.stdout || result.stderr
+      await ctx.reply(`output:\n\`\`\`\n${output.slice(0, 4000)}\n\`\`\``, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error(`TelegramBot: Error executing command: ${error}`);
+      await ctx.reply(`command failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async cmdTest(ctx: MyContext) {
+    console.info(`TelegramBot: /test command received from user ${ctx.from?.id}`);
+    await ctx.reply('testing...');
   }
 }
