@@ -137,6 +137,10 @@ export class TelegramBot {
     this.bot.command('exec', async ctx => await this.cmdExec(ctx));
     // Destroy command - destroys the machine
     this.bot.command('destroy', async ctx => await this.cmdDestroy(ctx));
+    // File command - reads a file from the machine
+    this.bot.command('file', async ctx => await this.cmdFile(ctx));
+    // Env command - sets an env var on the machine
+    this.bot.command('env', async ctx => await this.cmdEnv(ctx));
     // Help command - shows the help message
     this.bot.command('help', async ctx => await ctx.reply(HELP_MESSAGE));
     // Test command - tests the machine
@@ -239,8 +243,52 @@ export class TelegramBot {
     }
   }
 
+  private async cmdFile(ctx: MyContext) {
+    console.info(`TelegramBot: /files command received from user ${ctx.from?.id}`);
+
+    const file = ctx.match as string;
+    if (!file) {
+      await ctx.reply('provide a file');
+      return;
+    }
+
+    try {
+      const sandbox = this.getSandbox(ctx);
+      const result = await sandbox.readFile(file, { encoding: 'utf-8' });
+      await ctx.reply(`file content:\n\`\`\`\n${result.content.slice(0, 4000)}\n\`\`\``, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error(`TelegramBot: Error reading file: ${error}`);
+      await ctx.reply(`file reading failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async cmdEnv(ctx: MyContext) {
+    console.info(`TelegramBot: /env command received from user ${ctx.from?.id}`);
+
+    const [key, value] = (ctx.match as string)?.split('=', 2) ?? [];
+    
+    if (!key?.trim()) {
+      await ctx.reply('provide a key');
+      return;
+    }
+
+    if (!value?.trim()) {
+      await ctx.reply('provide a value');
+      return;
+    }
+
+    try {
+      const sandbox = this.getSandbox(ctx);
+      await sandbox.setEnvVars({ [key.trim()]: value.trim() });
+      await ctx.reply(`env var set successfully`);
+    } catch (error) {
+      console.error(`TelegramBot: Error setting env var: ${error}`);
+      await ctx.reply(`env var setting failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   private async cmdTest(ctx: MyContext) {
     console.info(`TelegramBot: /test command received from user ${ctx.from?.id}`);
-    await ctx.reply('testing...');
+    await ctx.reply('match: ' + ctx.match);
   }
 }

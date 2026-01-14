@@ -9,6 +9,8 @@ const main = async () => {
     { command: "destroy", description: "destroy the machine" },
     { command: "test", description: "test the machine (dev)" },
     { command: "help", description: "show help message" },
+    { command: "file", description: "read a file from the machine" },
+    { command: "env", description: "set an env var on the machine" },
   ]);
   console.log('Commands set', commands);
 };
