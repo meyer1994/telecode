@@ -212,16 +212,25 @@ export class TelegramBot {
 
   private async cmdExec(ctx: MyContext) {
     console.info(`TelegramBot: /exec command received from user ${ctx.from?.id}`);
-      
-    if (!ctx.match) {
+
+    let command: string | undefined = undefined;
+    if (ctx.match) {
+      command = ctx.match as string;
+    }
+
+    if (ctx.message?.text?.startsWith('.')) {
+      command = ctx.message?.text?.slice(1);
+    }
+
+    if (!command) {
       await ctx.reply('provide a command');
-      return;  
+      return;
     }
 
     try {        
       await ctx.replyWithChatAction('typing');
       const sandbox = this.getSandbox(ctx);
-      const result = await sandbox.exec(ctx.match[1]);
+      const result = await sandbox.exec(command);
       const output = result.stdout || result.stderr
       await ctx.reply(`output:\n\`\`\`\n${output.slice(0, 4000)}\n\`\`\``, { parse_mode: 'Markdown' });
     } catch (error) {
