@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@cloudflare/sandbox':
-        specifier: ^0.6.10
-        version: 0.6.10
+        specifier: ^0.7.0
+        version: 0.7.0
       '@grammyjs/conversations':
         specifier: ^2.1.1
         version: 2.1.1(grammy@1.39.2)
@@ -85,8 +85,8 @@ packages:
     resolution: {integrity: sha512-Nu8ahitGFFJztxUml9oD/DLb7Z28C8cd8F46IVQ7y5Btz575pvMY8AqZsXkX7Gds29eCKdMgIHjIvzskHgPSFg==}
     engines: {node: '>=18.0.0'}
 
-  '@cloudflare/sandbox@0.6.10':
-    resolution: {integrity: sha512-rQygMktW45IPay8u326Eg5iAnuRAkROK3R2HjsN3xBqiqneNSYwdww+xxa0PuY+gkC/5ykzaCtXhE1LpOFhM+w==}
+  '@cloudflare/sandbox@0.7.0':
+    resolution: {integrity: sha512-U9e/fqc2R/epygMRoRFZxjM6z8ZSyJqQSFFykWTLWl2j+c9+kK9reBjp1G/RcvTAGtv8pH3Dac21jmvh4ZbGXg==}
     peerDependencies:
       '@openai/agents': ^0.3.3
       '@opencode-ai/sdk': ^1.0.137
@@ -1395,6 +1395,23 @@ packages:
       openai:
         optional: true
 
+  langsmith@0.4.6:
+    resolution: {integrity: sha512-9aYop1fEwA8RgFuvv8XPeV9ieeSnKnVRn3bNemkFQCyINLAxfNHC547bVMW8i8MuS1F1pgKwopqhLNf80qS1bQ==}
+    peerDependencies:
+      '@opentelemetry/api': '*'
+      '@opentelemetry/exporter-trace-otlp-proto': '*'
+      '@opentelemetry/sdk-trace-base': '*'
+      openai: '*'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/exporter-trace-otlp-proto':
+        optional: true
+      '@opentelemetry/sdk-trace-base':
+        optional: true
+      openai:
+        optional: true
+
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
@@ -1693,7 +1710,7 @@ snapshots:
     dependencies:
       mime: 3.0.0
 
-  '@cloudflare/sandbox@0.6.10':
+  '@cloudflare/sandbox@0.7.0':
     dependencies:
       '@cloudflare/containers': 0.0.30
 
@@ -2130,7 +2147,7 @@ snapshots:
       camelcase: 6.3.0
       decamelize: 1.2.0
       js-tiktoken: 1.0.21
-      langsmith: 0.4.5
+      langsmith: 0.4.6
       mustache: 4.2.0
       p-queue: 6.6.2
       uuid: 10.0.0
@@ -2723,6 +2740,15 @@ snapshots:
       - zod-to-json-schema
 
   langsmith@0.4.5:
+    dependencies:
+      '@types/uuid': 10.0.0
+      chalk: 4.1.2
+      console-table-printer: 2.15.0
+      p-queue: 6.6.2
+      semver: 7.7.3
+      uuid: 10.0.0
+
+  langsmith@0.4.6:
     dependencies:
       '@types/uuid': 10.0.0
       chalk: 4.1.2
