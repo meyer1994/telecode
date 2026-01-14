@@ -4,7 +4,7 @@ import {
   type ConversationFlavor
 } from '@grammyjs/conversations';
 import { eq } from 'drizzle-orm';
-import { Bot, Context, session, SessionFlavor } from 'grammy';
+import { Bot, Context, InputFile, session, SessionFlavor } from 'grammy';
 import { ignoreOld } from 'grammy-middlewares';
 import type { UserFromGetMe } from 'grammy/types';
 import type { StorageAdapter } from 'grammy/web';
@@ -255,8 +255,8 @@ export class TelegramBot {
 
     try {
       const sandbox = this.getSandbox(ctx);
-      const result = await sandbox.readFile(file, { encoding: 'utf-8' });
-      await ctx.reply(`file content:\n\`\`\`\n${result.content.slice(0, 4000)}\n\`\`\``, { parse_mode: 'Markdown' });
+      const result = await sandbox.readFileStream(file);
+      await ctx.replyWithDocument(new InputFile(result, file));
     } catch (error) {
       console.error(`TelegramBot: Error reading file: ${error}`);
       await ctx.reply(`file reading failed: ${error instanceof Error ? error.message : String(error)}`);
