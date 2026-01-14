@@ -98,19 +98,19 @@ export class TelegramBot {
     });
 
     // ignore old updates
-    this.bot.use(ignoreOld(60 * 24)); // 24 hours
+    this.bot.use(ignoreOld(60)); // 1 minute
 
     // session management
-    this.bot.use(session({ 
+    this.bot.use(session({
       prefix: 'session:',
       storage: new DrizzleAdapter(this.db),
-      initial: (): Session => ({ 
+      initial: (): Session => ({
         sandboxId: null,
       })
     }));
 
     // conversations support
-    this.bot.use(conversations({ 
+    this.bot.use(conversations({
       storage: {
         type: 'key',
         prefix: 'conversation:',
@@ -147,11 +147,13 @@ export class TelegramBot {
     this.bot.command('help', async ctx => await ctx.reply(HELP_MESSAGE));
     // Test command - tests the machine
     this.bot.command('test', async ctx => await this.cmdTest(ctx));
+    // File received - uploads a file to the machine
+    this.bot.on('message:file', async (ctx) => this.rcvFile(ctx));
 
     this.bot.on('message:text', async (ctx) => {
       if (!ctx.message?.text?.startsWith('.')) return
       await this.cmdExec(ctx);
-    });      
+    });
 
     this.bot.on('message:text', async (ctx) => {
       if (ctx.message?.text?.startsWith('.')) return
@@ -204,7 +206,7 @@ export class TelegramBot {
 
   private async cmdDestroy(ctx: MyContext) {
     console.info(`TelegramBot: /destroy command received from user ${ctx.from?.id}`);
-      
+
     try {
       const sandbox = this.getSandbox(ctx);
       await sandbox.destroy();
@@ -232,7 +234,7 @@ export class TelegramBot {
       return;
     }
 
-    try {        
+    try {
       await ctx.replyWithChatAction('typing');
       const sandbox = this.getSandbox(ctx);
       const result = await sandbox.exec(command);
@@ -267,7 +269,7 @@ export class TelegramBot {
     console.info(`TelegramBot: /env command received from user ${ctx.from?.id}`);
 
     const [key, value] = (ctx.match as string)?.split('=', 2) ?? [];
-    
+
     if (!key?.trim()) {
       await ctx.reply('provide a key');
       return;
@@ -291,5 +293,22 @@ export class TelegramBot {
   private async cmdTest(ctx: MyContext) {
     console.info(`TelegramBot: /test command received from user ${ctx.from?.id}`);
     await ctx.reply('match: ' + ctx.match);
+  }
+
+  private async rcvFile(ctx: MyContext) {
+    console.info(`TelegramBot: File received from user ${ctx.from?.id}`);
+
+    try {
+      const file = await ctx.getFile();
+      const sandbox = this.getSandbox(ctx);
+      const response = await fetch(`https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`);
+      const body = await response.text()
+      if (!body) throw new Error('Failed to read file');
+      await sandbox.writeFile('telegramfile', body);
+      await ctx.reply(`file uploaded successfully`);
+    } catch (error) {
+      console.error(`TelegramBot: Error uploading file: ${error}`);
+      await ctx.reply(`file uploading failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
